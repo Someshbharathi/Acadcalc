@@ -1,0 +1,71 @@
+# AcadCalc — continuous integration
+# Runs on every push and pull request targeting main.
+# Validates Python syntax, installs deps, and smoke-tests the Flask app
+# (same import path Render uses: gunicorn app:app).
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel older runs on the same branch when a new commit is pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test on Ubuntu
+    runs-on: ubuntu-latest
+
+    steps:
+      # --- Checkout code ---
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # --- Python 3.12 (matches runtime.txt for Render) ---
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      # --- Install Flask, gunicorn, livereload, etc. ---
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # --- Fast syntax check (no imports required) ---
+      - name: Check app.py syntax
+        run: python -m py_compile app.py
+
+      # --- Smoke-test Flask app (mirrors production import: from app import app) ---
+      - name: Validate Flask application
+        env:
+          FLASK_DEBUG: "0"
+          LIVERELOAD: "0"
+          SECRET_KEY: ci-test-secret-do-not-use-in-production
+        run: |
+          python << 'EOF'
+          from app import app
+
+          client = app.test_client()
+
+          # Health endpoint (used by uptime checks on Render)
+          health = client.get("/health")
+          assert health.status_code == 200, f"/health returned {health.status_code}"
+          assert health.get_data(as_text=True) == "ok"
+
+          # Home page renders template
+          home = client.get("/")
+          assert home.status_code == 200, f"/ returned {home.status_code}"
+          body = home.get_data(as_text=True)
+          assert "AcadCalc" in body, "Home page missing expected content"
+
+          print("Flask app validation passed.")
+          EOF

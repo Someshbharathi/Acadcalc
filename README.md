@@ -74,6 +74,16 @@ Then open **http://127.0.0.1:5000**. When you save files in `templates/` or `sta
 
 **macOS / Linux:** `LIVERELOAD=0 python app.py`
 
+## Continuous integration (GitHub Actions)
+
+On every **push** or **pull request** to `main`, the workflow in `.github/workflows/ci.yml` will:
+
+1. Install dependencies from `requirements.txt`
+2. Check `app.py` for syntax errors
+3. Smoke-test `/` and `/health` with Flask’s test client
+
+After you push to GitHub, open the **Actions** tab to see CI results.
+
 ## Deploy on Render (summary)
 
 1. Push this repo to GitHub (or GitLab / Bitbucket).
