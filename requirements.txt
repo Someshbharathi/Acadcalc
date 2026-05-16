@@ -1,0 +1,4 @@
+# Pin versions for predictable deploys. Install: pip install -r requirements.txt
+Flask==3.0.3
+gunicorn==23.0.0
+livereload==2.7.0
